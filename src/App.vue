@@ -1,17 +1,38 @@
 <template>
-  <div id="app">
-    <img alt="Vue logo" src="./assets/logo.png">
-    <HelloWorld msg="Welcome to Your Vue.js App"/>
+  <div id="app">    
+    <Game :map="map" />
+    <GameFixed :map="map" />
   </div>
 </template>
 
 <script>
-import HelloWorld from './components/HelloWorld.vue'
+import Game from './components/Game.vue'
+import GameFixed from './components/GameFixed.vue'
 
 export default {
   name: 'App',
   components: {
-    HelloWorld
+    Game,
+    GameFixed
+  },
+  data() {
+    return {
+      map: {
+          size: 16,
+          wallGrid: new Uint8Array(16 * 16)
+        }
+    }
+  },
+  methods: {
+    intialize() {
+      // Randomize Map
+      for (var i = 0; i < this.map.size * this.map.size; i++) {
+        this.map.wallGrid[i] = Math.random() < 0.3 ? 1: 0
+      }
+    },
+  },
+  mounted() {
+    this.intialize()
   }
 }
 </script>
