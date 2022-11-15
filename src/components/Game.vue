@@ -12,8 +12,8 @@ export default {
         wallTexture: null,
         canvas: {
           context: null,
-          height: 256,
-          width: 512
+          height: 128,
+          width: 256
         },       
         player: {
           x: 10,

@@ -9,16 +9,32 @@
 export default {
   data() {
     return {
+        wallTextureFixed: new Uint8Array([1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1,
+                                          0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
+                                          0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
+                                          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                          1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0,
+                                          1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
+                                          1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
+                                          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                          1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1,
+                                          0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
+                                          0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
+                                          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                          1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0,
+                                          1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
+                                          1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
+                                          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,]),
         wallTexture: null,
         canvas: {
           context: null,
-          height: 256,
-          width: 512
+          height: 128,
+          width: 256
         },       
         player: {
-          x: 10,
-          y: 10,
-          direction: 0
+          x: 10,  // 8:8 (ushort)
+          y: 10,  // 8:8 (ushort)
+          direction: 0  // 8 (ubyte) (0..255)
         },
         controls : {
           left: false,
@@ -27,8 +43,8 @@ export default {
           backwards: false
         },
         id: undefined,
-        focalLength: 0.8,
-        resolution: 128,        
+        focalLength: 0.8, // This will go away if table hardcoded
+        resolution: 128,
         lastTime: 0,
         trigQuarters: null,
         atan2FocalLength: null   
@@ -48,6 +64,7 @@ export default {
         this.trigQuarters = trigQuarters
         */
 
+        // This generates same table as above
         let trigQuarters = new Uint8Array(65)
         for (var i = 0; i < 65; i++) {
             let x = Math.round(Math.sin((i / 256.0) * Math.PI * 2.0) * 127.0) + 128
@@ -59,7 +76,7 @@ export default {
 
         let atan2FocalLength = new Uint8Array(128)
         for (i = 0; i < 128; i++) {
-           var x = Math.round((Math.atan2(i / 128 - 0.5, 0.8) / (2 * Math.PI))*256.0) + 128           
+           var x = Math.round((Math.atan2(i / 128 - 0.5, this.focalLength) / (2 * Math.PI))*256.0) + 128           
            atan2FocalLength[i] = x
         }
         this.atan2FocalLength = atan2FocalLength
@@ -106,6 +123,22 @@ export default {
                     
         // Convert (THIS NEEDS TO BE REWRITTEN FOR FIXED POINT)
         return (v - 128) / 127.0
+    },
+    cos_fixed(a) {
+        // For now rounding because the 0..256 angle is decimal so the rotations match
+        let x = Math.round(a) % 256
+
+        var v = 0
+        if (x < 64)
+            v = this.trigQuarters[64 - x]
+        else if (x < 128)
+            v = 256 - this.trigQuarters[x - 64]
+        else if (x < 192)
+            v = 256 - this.trigQuarters[192 - x]
+        else 
+            v = this.trigQuarters[x - 192]
+        
+        return v                    
     },
     atan2FL(x) {
         let v = this.atan2FocalLength[x]
@@ -177,8 +210,10 @@ export default {
       return step
     },
     loop(time) {      
-      if (this.canvas.context) {        
-        this.canvas.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      if (this.canvas.context) {       
+        this.canvas.context.fillStyle = "black"; 
+        this.canvas.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
         var spacing = this.canvas.width / this.resolution
         for (var column = 0; column < this.resolution; column++) {
           //var x = column / this.resolution - 0.5
@@ -187,15 +222,31 @@ export default {
           var ray = this.cast(this.player.direction + angle)
           if (ray.hit === 1) {
             // This needs to be rewritten for Fixed Point
+            /*
+            let df = (ray.distance << 8) & 65535
+            let ca = (this.cos_fixed(angle) - 128)            
+
+            let prod = ((df * ca) / 255) & 65535
+            var wallHeight = (((this.canvas.height << 8) / prod) << 8) >> 8
+            */
+
             var z_inv = 1 / (ray.distance * this.cos(angle))
-            var wallHeight = this.canvas.height * z_inv
-            var bottom = this.canvas.height / 2 * (1 + z_inv)
+            var wallHeight = this.canvas.height * z_inv            
+            var bottom = (this.canvas.height + wallHeight) / 2
             var top = bottom - wallHeight
             var height = wallHeight
-
-            var textureX = Math.floor(ray.offset * this.wallTexture.width)
-            this.canvas.context.imageSmoothingEnabled = false
-            this.canvas.context.drawImage(this.wallTexture, textureX, 0, 1, this.wallTexture.height, Math.floor(column * spacing), top, Math.ceil(spacing), height)
+          
+            var textureX = Math.floor(ray.offset * 16)
+            for (var i = 0; i < height; i += Math.ceil(spacing)) {
+              let y = Math.floor((i * 16) / height)
+              let t = this.wallTextureFixed[y * 16 + textureX]
+              if (t === 0) {
+                this.canvas.context.fillStyle = "black";                              
+              } else {
+                this.canvas.context.fillStyle = "green";
+              }
+              this.canvas.context.fillRect(Math.floor(column * spacing), top + i, Math.ceil(spacing), Math.ceil(spacing))
+            }
           }
         }
       }
